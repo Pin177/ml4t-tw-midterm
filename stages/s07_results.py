@@ -181,9 +181,9 @@ def headline(fold_share):
     (REPORTS / "headline_table.md").write_text(t.to_markdown(index=False), encoding="utf-8")
     fig, ax = plt.subplots(figsize=(11, 4.6))
     ax.axis("off")
-    tb = ax.table(cellText=t.values, colLabels=t.columns, loc="center", cellLoc="left", colWidths=[0.09, 0.31, 0.2, 0.2, 0.17])
+    tb = ax.table(cellText=t.values, colLabels=t.columns, loc="center", cellLoc="left", colWidths=[0.1, 0.3, 0.22, 0.22, 0.2])
     tb.auto_set_font_size(False)
-    tb.set_fontsize(11)
+    tb.set_fontsize(10)
     tb.scale(1, 1.75)
     for (r, c), cell in tb.get_celld().items():
         cell.set_edgecolor("#d8dde3")

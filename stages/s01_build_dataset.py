@@ -14,8 +14,8 @@ import pandas as pd
 
 from common import DB, FEATURES, H, PROC, RAW, ROOT, SETUP
 
-sys.path.insert(0, str(ROOT.parent))
-import twdb  # noqa: E402  the existing adjustment logic, used read-only through our own connection
+sys.path.insert(0, str(ROOT / "data"))
+import twdb  # noqa: E402  the adjustment logic that built tw.db, used read-only through our own connection
 
 STOCK = re.compile(r"[1-9]\d{3}")
 START = str(SETUP["evaluation_protocol"]["feature_data_start"])
