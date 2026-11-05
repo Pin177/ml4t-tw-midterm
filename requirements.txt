@@ -1,0 +1,11 @@
+numpy
+pandas
+pyarrow
+scipy
+statsmodels
+scikit-learn
+lightgbm
+shap
+optuna
+matplotlib
+pyyaml

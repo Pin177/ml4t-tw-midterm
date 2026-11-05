@@ -1,0 +1,92 @@
+# Trading setup contract (ML4T Ch. 6). Written before any backtest or return was computed.
+setup_version: v1
+strategy: tw_momentum_flow_revenue
+
+hypothesis:
+  mechanism: >
+    Taiwanese investors underreact to firm-specific news, so 6-12 month winners keep
+    outperforming for about one month. The drift is stronger when foreign and investment-trust
+    institutions accumulate the stock and when monthly revenue accelerates.
+  sources_of_edge: [informational_advantage, flow_predictability]
+  falsification:
+    - walk-forward IC 95% CI includes zero
+    - a 5-21 trading-day timing placebo does not kill the IC
+    - net Sharpe after Taiwan costs is below the 12-1 momentum baseline
+
+universe:
+  markets: [TWSE, TPEx]
+  security_type: common stock (4-digit code starting 1-9)
+  min_listed_trading_days: 252
+  min_price_ntd: 10
+  min_median_value_63d_ntd: 50000000
+  exclude: [disposition stocks on decision date, TPEx managed stocks]
+  keep_delisted_history: true
+
+decision_schedule:
+  snapshot: last trading day of month, after 15:00 Asia/Taipei
+  execution: next trading day open
+  holding: until next rebalance
+
+admissible_information:
+  prices_volume: available same day 15:00
+  institutional_flows: available same day after close
+  monthly_revenue: 10th of following month + 1 trading day (statutory deadline; actual filing time not available)
+  disposition_status: announcement date
+
+label:
+  type: continuous forward return
+  definition: adjusted Open(t+22) / Open(t+1) - 1
+  horizon_trading_days: 21
+
+score_to_trade:
+  side: long_only
+  entry: model rank in top 10%
+  hold_buffer: keep holding while rank stays in top 20%
+  exit: rank leaves top 20% or stock loses eligibility
+  weighting: equal
+  no_trade: no new positions when fewer than 100 eligible names
+  unfillable_buy: skip for the month, redistribute cash pro rata
+  unfillable_sell: carry to the next fillable open
+
+constraints:
+  leverage: 1.0
+  shorting: false
+  max_weight_per_name: 0.05
+  max_weight_per_sector: 0.40
+
+cost_model:
+  class: per-leg bps by instrument rule
+  commission_bps_each_side: 14.25
+  sell_tax_bps: 30
+  half_spread_bps_by_median_value_63d: {above_500m: 5, 100m_to_500m: 10, below_100m: 20}
+  sweep_multiples: [0, 1, 2, 3, 4]
+
+evaluation_protocol:
+  feature_data_start: 2011-01-01
+  training_start: 2012-06-01    # first month with institutional flow data
+  validation_start: 2018-01-01
+  validation_end: 2024-10-31
+  training_window: expanding, minimum 5 years
+  step: 12 months
+  retrain_cadence: annual
+  label_horizon_trading_days: 21
+  purge_trading_days: 21
+  embargo_trading_days: 0       # training never follows validation
+  longest_feature_lookback_trading_days: 252
+  hyperparameter_tuning: nested (last 12 months of each training window, purged)
+
+holdout:
+  start: 2024-11-01
+  end: 2026-10-31
+  sealed_on: 2026-11-05
+  touches_allowed: 1
+  confirmatory_test: holdout IC Newey-West 95% CI lower bound > 0 AND net Sharpe >= momentum baseline net Sharpe
+
+risk:
+  overlay: volatility target 15% annualized, 63-day realized, t-1 data, exposure capped at 100%
+  drawdown_ladder: {0.05: watch, 0.10: halve, 0.15: halt_new_positions, 0.20: unwind}
+  stress_episodes: [2020-03, 2022, 2024-08]
+  stress_spread_multiple: 3
+
+benchmarks: [momentum_12_1_rule, etf_0050, equal_weight_universe]
+seed: 42
