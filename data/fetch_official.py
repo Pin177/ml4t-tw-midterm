@@ -1,10 +1,12 @@
-"""Download official data missing from tw.db: institutional flows, monthly revenue, disposition notices.
+"""Download official data missing from tw.db: monthly revenue and disposition notices.
 
+Institutional flows come from the parquet files in 法人資料/, checked by data/verify_flows.py.
 Every response is stored untouched under data/raw/ so the dataset can be rebuilt offline.
 Re-running resumes: a file that exists is not fetched again. Each site gets one request per ~3.5 s.
 
     python data/fetch_official.py
 """
+import calendar
 import gzip
 import os
 import random
@@ -29,13 +31,6 @@ CTX = ssl.create_default_context()
 CTX.verify_flags &= ~ssl.VERIFY_X509_STRICT
 
 
-def trading_days():
-    c = sqlite3.connect(f"file:{DB.as_posix()}?mode=ro", uri=True)
-    days = [d for (d,) in c.execute("SELECT DISTINCT date FROM quotes WHERE date BETWEEN ? AND ? ORDER BY date DESC", (FIRST, LAST))]
-    c.close()
-    return days
-
-
 def months():
     y, m = 2026, 9
     while (y, m) >= (2011, 1):
@@ -51,7 +46,6 @@ def revenue_url(board, y, m):
 
 
 def jobs_for(site):
-    days = trading_days()
     out = []
     if site == "mops":
         for y, m in months():
@@ -59,12 +53,8 @@ def jobs_for(site):
                 out.append((RAW / f"revenue_{board}" / f"{y}{m:02d}.html.gz", revenue_url(board, y, m)))
     elif site == "twse":
         out += [(RAW / "punish_twse" / f"{y}{m:02d}.json.gz",
-                 f"{TWSE}announcement/punish?startDate={y}{m:02d}01&endDate={y}{m:02d}28&response=json") for y, m in months() if y >= 2012]
-        out += [(RAW / "flow_twse" / f"{d}.json.gz",
-                 f"{TWSE}fund/T86?date={d.replace('-', '')}&selectType=ALLBUT0999&response=json") for d in days]
-    else:
-        out += [(RAW / "flow_tpex" / f"{d}.json.gz",
-                 f"{TPEX}insti/dailyTrade?type=Daily&sect=EW&date={d.replace('-', '/')}&id=&response=json") for d in days]
+                 f"{TWSE}announcement/punish?startDate={y}{m:02d}01&endDate={y}{m:02d}{calendar.monthrange(y, m)[1]}&response=json")
+                for y, m in months() if y >= 2012]
     return out
 
 
@@ -102,7 +92,7 @@ def run(site):
 
 
 if __name__ == "__main__":
-    threads = [threading.Thread(target=run, args=(s,)) for s in ("mops", "twse", "tpex")]
+    threads = [threading.Thread(target=run, args=(s,)) for s in ("mops", "twse")]
     for t in threads:
         t.start()
     for t in threads:
