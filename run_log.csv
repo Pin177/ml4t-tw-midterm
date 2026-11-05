@@ -70,3 +70,4 @@ tw_momentum_flow_revenue,cost_sweep,ridge,4,2026-11-05T16:06:53,2a3c42c,tw.db@20
 tw_momentum_flow_revenue,allocator,equal,1,2026-11-05T16:06:59,2a3c42c,tw.db@2026-11-05,same signal ridge,2018-01-01..2024-10-31,net_sharpe,1.115875,reported,null is equal weight,
 tw_momentum_flow_revenue,allocator,inverse_vol,1,2026-11-05T16:06:59,2a3c42c,tw.db@2026-11-05,same signal ridge,2018-01-01..2024-10-31,net_sharpe,1.209391,reported,null is equal weight,
 tw_momentum_flow_revenue,overlay,vol_target_and_ladder,1,2026-11-05T16:07:03,2a3c42c,tw.db@2026-11-05,vol target 0.15,2018-01-01..2024-10-31,net_sharpe,0.789351,reported,with and without,
+tw_momentum_flow_revenue,holdout,ridge,1,2026-11-05T19:21:08,bd6cece,tw.db@2026-11-05,frozen spec,2024-11-01..2026-10-31,net_sharpe,1.350746,confirmatory fail,single touch,
