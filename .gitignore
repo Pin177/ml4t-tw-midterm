@@ -5,3 +5,8 @@ data/raw/
 data/processed/
 .ipynb_checkpoints/
 *.log
+docs/authors.local.json
+docs/*.pdf
+docs/*.docx
+法人資料/dealer_self_*.parquet
+法人資料/revenue_prev_month.parquet

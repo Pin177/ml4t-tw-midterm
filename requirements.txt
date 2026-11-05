@@ -10,3 +10,5 @@ optuna
 matplotlib
 pyyaml
 tabulate
+reportlab
+python-docx
