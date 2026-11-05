@@ -194,7 +194,7 @@ def simulate(decisions, market, start, end, select="score", cost_mult=1.0, sprea
                     if tgt == 0:
                         shares.pop(c)
             # Buys and top-ups, scaled to the cash on hand so that no leverage can appear
-            need = {c: max(w[c] * nav - shares.get(c, 0.0) * op.at[day, c], 0.0) for c in w.index}
+            need = {c: max(w[c] * nav - shares.get(c, 0.0) * op.at[day, c], 0.0) for c in w.index if np.isfinite(op.at[day, c])}
             total = sum(need.values())
             bp = {c: (C["commission_bps_each_side"] + spread_of.get(c, 20.0) * spread_mult) * cost_mult / 1e4 for c in need}
             all_in = sum(need[c] * (1 + bp[c]) for c in need)

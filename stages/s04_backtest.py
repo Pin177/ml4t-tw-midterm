@@ -130,7 +130,10 @@ def main():
     # Inference
     variants = table[table["strategy"].isin(["rule", "ridge", "lgbm", "ensemble"])]["sharpe"].tolist() + [a["sharpe"] for a in alloc[1:]] + [om["sharpe"]]
     ledger = pd.read_csv(REPORTS.parent / "run_log.csv")
-    n_trials = max(len(variants), len(ledger))
+    # Reruns after bug fixes are not trials. Each LightGBM fold counts its Optuna trials.
+    distinct = ledger.drop_duplicates(["trial_family", "trial", "run"])
+    gbm = distinct["trial_family"] == "model_lgbm"
+    n_trials = int((~gbm).sum() + pd.to_numeric(distinct.loc[gbm, "run"]).sum())
     dsr = deflated_sharpe(bm["sharpe"], bm["years"], bm["skew"], bm["kurtosis"], n_trials, float(np.var(variants)))
     summary = dict(deployed=deployed, first_trade=str(first.date()), validation=bm, gross_sharpe=sweep.loc[0, "net_sharpe"], overlay=om, benchmark_0050=bench_m,
                    breakeven_bp_per_leg_vs_0050=breakeven_0050, breakeven_bp_per_leg_vs_zero=breakeven_zero, n_trials=n_trials, sharpe_variance=float(np.var(variants)), deflated_sharpe=dsr,

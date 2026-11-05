@@ -1,0 +1,137 @@
+{
+ "passed": true,
+ "checks": [
+  {
+   "question": 1,
+   "check": "Features recomputed with data cut at T match the panel (4 dates, 7 features)",
+   "passed": true,
+   "detail": "largest difference 0.00e+00"
+  },
+  {
+   "question": 1,
+   "check": "Revenue changes only after the 10th of the month (TSMC)",
+   "passed": true,
+   "detail": "153 updates, earliest day of month 11"
+  },
+  {
+   "question": 1,
+   "check": "Every feature has a stated availability rule in setup.yaml",
+   "passed": true,
+   "detail": "['prices_volume', 'institutional_flows', 'monthly_revenue', 'disposition_status']"
+  },
+  {
+   "question": 2,
+   "check": "Universe includes names that later left the market",
+   "passed": true,
+   "detail": "84 eligible names later delisted"
+  },
+  {
+   "question": 3,
+   "check": "Label equals adjusted Open(t+22)/Open(t+1)-1 on 5,000 random rows",
+   "passed": true,
+   "detail": "4994 of 4994"
+  },
+  {
+   "question": 1,
+   "check": "Every eligible stock is scored, including those whose label is missing",
+   "passed": true,
+   "detail": "0 unscored of 32641; 8 have no label"
+  },
+  {
+   "question": 9,
+   "check": "No simulated series contains a gap or a non-positive NAV",
+   "passed": true,
+   "detail": "{'strategy': 4.342, 'rule': 1.734, 'equal_weight': 2.143}"
+  },
+  {
+   "question": 3,
+   "check": "Simulator fills buys at the open of the day after the decision",
+   "passed": true,
+   "detail": "code check"
+  },
+  {
+   "question": 4,
+   "check": "Winsor limits fitted on the training fold; ranks are within one date",
+   "passed": true,
+   "detail": "code check"
+  },
+  {
+   "question": 5,
+   "check": "In every fold the last training label ends before the test block",
+   "passed": true,
+   "detail": "[{'fold': '2018', 'last_label_end': '2017-12-28', 'test_start': '2018-01-02'}, {'fold': '2019', 'last_label_end': '2018-12-25', 'test_start': '2019-01-02'}, {'fold': '2020', 'last_label_end': '2019-12-31', 'test_start': '2020-01-02'}, {'fold': '2021', 'last_label_end': '2020-12-31', 'test_start': '2021-01-04'}, {'fold': '2022', 'last_label_end': '2021-12-24', 'test_start': '2022-01-03'}, {'fold': '2023', 'last_label_end': '2022-12-30', 'test_start': '2023-01-03'}, {'fold': '2024', 'last_label_end': '2023-12-25', 'test_start': '2024-01-02'}]"
+  },
+  {
+   "question": 5,
+   "check": "Purge equals the 21-trading-day label horizon",
+   "passed": true,
+   "detail": "purge 21, horizon 21"
+  },
+  {
+   "question": 6,
+   "check": "No validation score or NAV reaches into the holdout",
+   "passed": true,
+   "detail": "last score 2024-09-25, last NAV 2024-10-30"
+  },
+  {
+   "question": 6,
+   "check": "Validation labels all end before the holdout",
+   "passed": true,
+   "detail": "2024-10-30"
+  },
+  {
+   "question": 6,
+   "check": "Holdout has not been run",
+   "passed": true,
+   "detail": "no marker file"
+  },
+  {
+   "question": 6,
+   "check": "Ledger shows no run inside the holdout window",
+   "passed": true,
+   "detail": "71 rows"
+  },
+  {
+   "question": 7,
+   "check": "Research ledger exists with every family logged",
+   "passed": true,
+   "detail": "71 rows, 9 families"
+  },
+  {
+   "question": 7,
+   "check": "Deflated Sharpe uses the ledger's count, with every Optuna trial",
+   "passed": true,
+   "detail": "n_trials 116"
+  },
+  {
+   "question": 8,
+   "check": "Costs include commission, sell tax and spread",
+   "passed": true,
+   "detail": "code check"
+  },
+  {
+   "question": 8,
+   "check": "Cost sweep runs 0 to 4x and net Sharpe falls as costs rise",
+   "passed": true,
+   "detail": "[1.36, 1.116, 0.87, 0.624, 0.384]"
+  },
+  {
+   "question": 9,
+   "check": "Caps hold inside the simulation",
+   "passed": true,
+   "detail": "max name 0.034, max sector 0.400"
+  },
+  {
+   "question": 9,
+   "check": "Overlay and ladder read only the path up to the decision date",
+   "passed": true,
+   "detail": "code check"
+  },
+  {
+   "question": "penalty",
+   "check": "No unexplained Sharpe above 3",
+   "passed": true,
+   "detail": "net 1.12, gross 1.36"
+  }
+ ]
+}

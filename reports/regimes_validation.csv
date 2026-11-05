@@ -1,0 +1,7 @@
+vol,trend,days,ann_return,sharpe,worst_drawdown
+high vol,downtrend,289,0.0412,0.1502,-0.2775
+high vol,uptrend,415,0.4336,1.6776,-0.1973
+low vol,downtrend,52,-0.0399,-0.2468,-0.0854
+low vol,uptrend,461,0.4859,2.6038,-0.1019
+mid vol,downtrend,83,-0.0939,-0.4322,-0.1484
+mid vol,uptrend,338,0.0177,0.0915,-0.1574

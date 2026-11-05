@@ -60,7 +60,8 @@ def folds():
 def purged_train(df, test_start, calendar):
     """Training rows whose 21-day label ends before the test block (purge = label horizon)."""
     pos = calendar.searchsorted(test_start)
-    cutoff = calendar[max(pos - P["purge_trading_days"], 0)]
+    # The label runs from t+1 to t+22, so a 21-day purge plus one day keeps it strictly before the test block
+    cutoff = calendar[max(pos - P["purge_trading_days"] - 1, 0)]
     return df[(df["date"] >= TRAIN_START) & (df["date"] < cutoff)]
 
 

@@ -53,7 +53,8 @@ def inner_split(train, calendar):
     days = pd.DatetimeIndex(sorted(train["date"].unique()))
     start = days[-252]
     pos = days.searchsorted(start)
-    return train[train["date"] < days[pos - H]], train[train["date"] >= start]
+    full = calendar[calendar.searchsorted(start) - H - 1]
+    return train[train["date"] < full], train[train["date"] >= start]
 
 
 def mean_ic(df, pred):
@@ -97,7 +98,8 @@ def lgb_params(p):
 
 def conformal(fit_pred, fit_y, test_pred, test_y, level=0.8):
     q = np.quantile(np.abs(fit_y - fit_pred), level)
-    return q, float(np.mean(np.abs(test_y - test_pred) <= q))
+    known = np.isfinite(test_y)
+    return q, float(np.mean(np.abs(test_y[known] - test_pred[known]) <= q))
 
 
 def main():
@@ -107,7 +109,8 @@ def main():
     log_run("feature_set", "after_triage", 1, json.dumps(signals), "validation", "n_features", len(signals), "use", "triage")
 
     panel = load_panel()
-    panel = panel[panel["date"] <= VAL_END].dropna(subset=["label"])
+    # Rows with no label stay in the test blocks: a missing future price is unknowable at decision time
+    panel = panel[panel["date"] <= VAL_END]
     calendar = pd.DatetimeIndex(sorted(panel["date"].unique()))
     panel = add_ranks(panel, SIGNALS)
     feats_tree = signals + STATES
@@ -115,7 +118,7 @@ def main():
     scores, protocol, ic_rows, shaps, conf = [], [], [], [], []
     for a, b in folds():
         year = a.year
-        train = purged_train(panel, a, calendar)
+        train = purged_train(panel, a, calendar).dropna(subset=["label"])
         test = panel[(panel["date"] >= a) & (panel["date"] <= b)].copy()
         assert train["label_end"].max() < test["date"].min(), "label overlaps the test block"
         limits = winsor_limits(train, STATES)
