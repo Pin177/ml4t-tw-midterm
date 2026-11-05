@@ -1,1 +1,9 @@
 ﻿strategy,trial_family,trial,run,timestamp,git_commit,data_snapshot,config,window,metric_name,metric_value,decision,gate,note
+tw_momentum_flow_revenue,feature_triage,mom_12_1,1,2026-11-05T15:58:40,ffcf909,tw.db@2026-11-05,five gates,2018-01-01..2024-10-31,ic_mean,-0.007405,STOP,G1 placebo keeps IC; G2 CI spans 0; G2 wrong sign; G5 BH,
+tw_momentum_flow_revenue,feature_triage,mom_6_1,1,2026-11-05T15:58:40,ffcf909,tw.db@2026-11-05,five gates,2018-01-01..2024-10-31,ic_mean,0.003496,STOP,G1 placebo keeps IC; G2 CI spans 0; G5 BH,
+tw_momentum_flow_revenue,feature_triage,dist_52w_high,1,2026-11-05T15:58:40,ffcf909,tw.db@2026-11-05,five gates,2018-01-01..2024-10-31,ic_mean,0.044118,REVISE,G1 placebo keeps IC; G5 BH,
+tw_momentum_flow_revenue,feature_triage,rev_21d,1,2026-11-05T15:58:40,ffcf909,tw.db@2026-11-05,five gates,2018-01-01..2024-10-31,ic_mean,0.021122,STOP,G1 placebo keeps IC; G2 CI spans 0; G3 not monotone; G4 spread under 2x cost; G5 BH,
+tw_momentum_flow_revenue,feature_triage,foreign_net_buy_20d,1,2026-11-05T15:58:41,ffcf909,tw.db@2026-11-05,five gates,2018-01-01..2024-10-31,ic_mean,-0.010922,STOP,G1 placebo keeps IC; G2 CI spans 0; G2 wrong sign; G3 not monotone; G4 spread under 2x cost; G5 BH,
+tw_momentum_flow_revenue,feature_triage,trust_net_buy_20d,1,2026-11-05T15:58:41,ffcf909,tw.db@2026-11-05,five gates,2018-01-01..2024-10-31,ic_mean,-0.007468,STOP,G1 placebo keeps IC; G2 CI spans 0; G2 wrong sign; G3 not monotone; G4 spread under 2x cost; G5 BH,
+tw_momentum_flow_revenue,feature_triage,revenue_yoy,1,2026-11-05T15:58:41,ffcf909,tw.db@2026-11-05,five gates,2018-01-01..2024-10-31,ic_mean,-0.005290,STOP,G1 placebo keeps IC; G2 CI spans 0; G2 wrong sign; G3 not monotone; G5 BH,
+tw_momentum_flow_revenue,feature_triage,revenue_accel,1,2026-11-05T15:58:41,ffcf909,tw.db@2026-11-05,five gates,2018-01-01..2024-10-31,ic_mean,0.026269,REVISE,G1 placebo keeps IC; G4 spread under 2x cost,

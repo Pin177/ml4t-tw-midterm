@@ -1,0 +1,9 @@
+feature,role,ic_mean,ic_low,ic_high,p_nw,icir,folds_same_sign,ic_5d,ic_21d,ic_63d,placebo_5,placebo_21,quintile_spearman,q5_q1_bp_21d,turnover_monthly,cost_bp_month,bh_reject,decision,failed
+mom_12_1,signal,-0.0074,-0.0329,0.01809,0.56913,-0.05345,0.71429,-0.00185,-0.0074,-0.02188,-0.0121,-0.02012,0.9,67.59186,0.29138,24.76719,False,STOP,G1 placebo keeps IC; G2 CI spans 0; G2 wrong sign; G5 BH
+mom_6_1,signal,0.0035,-0.01902,0.02601,0.76082,0.02696,0.57143,-0.00185,0.0035,0.0217,0.00248,0.00316,1.0,110.37378,0.41224,35.04,False,STOP,G1 placebo keeps IC; G2 CI spans 0; G5 BH
+dist_52w_high,signal,0.04412,0.00936,0.07888,0.01285,0.22318,0.85714,0.01476,0.04412,0.09429,0.05029,0.05628,1.0,134.40138,0.48597,41.30786,False,REVISE,G1 placebo keeps IC; G5 BH
+rev_21d,signal,0.02112,-0.00343,0.04567,0.09172,0.14143,0.57143,0.02784,0.02112,-0.01586,0.00782,-0.01809,-0.8,-37.97769,0.81036,68.88085,False,STOP,G1 placebo keeps IC; G2 CI spans 0; G3 not monotone; G4 spread under 2x cost; G5 BH
+foreign_net_buy_20d,signal,-0.01092,-0.02437,0.00252,0.11129,-0.12627,0.71429,-0.01328,-0.01092,0.00498,-0.00299,0.00576,0.8,23.27229,0.66423,56.45935,False,STOP,G1 placebo keeps IC; G2 CI spans 0; G2 wrong sign; G3 not monotone; G4 spread under 2x cost; G5 BH
+trust_net_buy_20d,signal,-0.00747,-0.02327,0.00833,0.35422,-0.0796,0.57143,-0.01197,-0.00747,0.0026,-0.00083,0.00936,-0.3,-0.71456,0.59413,50.50126,False,STOP,G1 placebo keeps IC; G2 CI spans 0; G2 wrong sign; G3 not monotone; G4 spread under 2x cost; G5 BH
+revenue_yoy,signal,-0.00529,-0.02718,0.0166,0.63572,-0.04395,0.57143,-2e-05,-0.00529,-0.0216,-0.00874,-0.017,0.8,82.69612,0.24902,21.16706,False,STOP,G1 placebo keeps IC; G2 CI spans 0; G2 wrong sign; G3 not monotone; G5 BH
+revenue_accel,signal,0.02627,0.01253,0.04001,0.00018,0.311,1.0,0.01833,0.02627,0.055,0.02296,0.02894,1.0,104.14027,0.65459,55.64018,True,REVISE,G1 placebo keeps IC; G4 spread under 2x cost

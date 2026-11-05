@@ -1,0 +1,4 @@
+feature,ic,sector_neutral_ic,low vol,mid vol,high vol
+dist_52w_high,0.0441,0.0304,0.0733,0.0584,-0.0
+revenue_accel,0.0263,0.0228,0.0383,0.0263,0.014
+rev_21d,0.0211,0.0189,0.0109,0.0076,0.0452
