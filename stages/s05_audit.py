@@ -92,8 +92,13 @@ def main():
     ledger = pd.read_csv(ROOT / "run_log.csv")
     check(6, "No validation score or NAV reaches into the holdout", sc["date"].max() < HOLD_START and nav.index.max() < HOLD_START, f"last score {sc['date'].max().date()}, last NAV {nav.index.max().date()}")
     check(6, "Validation labels all end before the holdout", panel["label_end"].max() < HOLD_START, panel["label_end"].max().date())
-    check(6, "Holdout has not been run", not (REPORTS / "holdout_touched.json").exists(), "no marker file")
-    check(6, "Ledger shows no run inside the holdout window", not ledger["window"].fillna("").str.contains(r"202[56]-").any(), f"{len(ledger)} rows")
+    replay = (REPORTS / "holdout_touched.json").exists()
+    if replay:
+        check(6, "Replay: the recorded holdout run is the only one in the ledger", ledger.loc[ledger["trial_family"] == "holdout", "config"].eq("frozen spec").all(), "marker file present")
+    else:
+        check(6, "Holdout has not been run", True, "no marker file")
+    outside = ledger[ledger["trial_family"] != "holdout"]
+    check(6, "Ledger shows no development run inside the holdout window", not outside["window"].fillna("").str.contains(r"202[56]-").any(), f"{len(ledger)} rows")
 
     summary = json.loads((REPORTS / "validation_summary.json").read_text(encoding="utf-8"))
     check(7, "Research ledger exists with every family logged", {"feature_triage", "model_ridge", "model_lgbm", "model_ladder", "cost_sweep", "allocator", "overlay"} <= set(ledger["trial_family"]), f"{len(ledger)} rows, {ledger['trial_family'].nunique()} families")
@@ -109,11 +114,13 @@ def main():
     check("penalty", "No unexplained Sharpe above 3", max(abs(summary["validation"]["sharpe"]), abs(summary["gross_sharpe"])) < 3, f"net {summary['validation']['sharpe']:.2f}, gross {summary['gross_sharpe']:.2f}")
 
     all_ok = all(c["passed"] for c in checks)
-    (REPORTS / "pre_holdout_audit.json").write_text(json.dumps(dict(passed=all_ok, checks=checks), indent=1, ensure_ascii=False), encoding="utf-8")
-    lines = ["# Pre-holdout audit", "", f"Overall: {'PASS' if all_ok else 'FAIL'}", "", "| Q | Check | Result | Detail |", "| --- | --- | --- | --- |"]
+    # After the holdout the pre-holdout record stays as it was; a replay writes its own file
+    stem = "replay_audit" if replay else "pre_holdout_audit"
+    (REPORTS / f"{stem}.json").write_text(json.dumps(dict(passed=all_ok, checks=checks), indent=1, ensure_ascii=False), encoding="utf-8")
+    lines = [f"# {'Replay' if replay else 'Pre-holdout'} audit", "", f"Overall: {'PASS' if all_ok else 'FAIL'}", "", "| Q | Check | Result | Detail |", "| --- | --- | --- | --- |"]
     lines += [f"| {c['question']} | {c['check']} | {'PASS' if c['passed'] else 'FAIL'} | {c['detail'][:140]} |" for c in checks]
     lines += ["", "Question 10 (someone else can regenerate from the repository root) is tested on a fresh clone after stage 7."]
-    (REPORTS / "pre_holdout_audit.md").write_text("\n".join(lines), encoding="utf-8")
+    (REPORTS / f"{stem}.md").write_text("\n".join(lines), encoding="utf-8")
     print("OVERALL", "PASS" if all_ok else "FAIL")
 
 

@@ -131,7 +131,7 @@ def main():
     variants = table[table["strategy"].isin(["rule", "ridge", "lgbm", "ensemble"])]["sharpe"].tolist() + [a["sharpe"] for a in alloc[1:]] + [om["sharpe"]]
     ledger = pd.read_csv(REPORTS.parent / "run_log.csv")
     # Reruns after bug fixes are not trials. Each LightGBM fold counts its Optuna trials.
-    distinct = ledger.drop_duplicates(["trial_family", "trial", "run"])
+    distinct = ledger[ledger["trial_family"] != "holdout"].drop_duplicates(["trial_family", "trial", "run"])
     gbm = distinct["trial_family"] == "model_lgbm"
     n_trials = int((~gbm).sum() + pd.to_numeric(distinct.loc[gbm, "run"]).sum())
     dsr = deflated_sharpe(bm["sharpe"], bm["years"], bm["skew"], bm["kurtosis"], n_trials, float(np.var(variants)))
