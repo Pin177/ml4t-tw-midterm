@@ -1,0 +1,10 @@
+{
+ "tsmc_return": 1.4597437822964654,
+ "etf_0050_return": 1.3459234574923098,
+ "months_tsmc_in_top_decile": 5,
+ "months": 24,
+ "median_universe_stock_return": 0.2165447777426328,
+ "rolling_beta_mean": 0.8998433609520535,
+ "rolling_beta_last": 0.8432424826734044,
+ "rolling_ic_positive_share": 0.7575024201355276
+}

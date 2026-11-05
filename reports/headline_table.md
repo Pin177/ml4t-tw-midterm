@@ -1,0 +1,13 @@
+| Stage     | Metric                         | Validation           | Holdout               | 0050 (val / hold)   |
+|:----------|:-------------------------------|:---------------------|:----------------------|:--------------------|
+| Signal    | Daily IC [HAC 95% CI]          | 0.046 [0.019, 0.074] | 0.037 [-0.003, 0.077] | --                  |
+| Signal    | ICIR; positive folds           | 0.29; 7/7            | 0.29; n/a             | --                  |
+| Portfolio | Gross Sharpe                   | 1.36                 | 1.52                  | --                  |
+| Portfolio | Max drawdown                   | -28.8%               | -26.5%                | -33.9% / -25.2%     |
+| Portfolio | Two-way turnover per year      | 13.5x                | 13.5x                 | --                  |
+| Costs     | Net Sharpe [95% CI]            | 1.12 [0.14, 2.09]    | 1.35 [-0.61, 3.31]    | 0.96 / 1.84         |
+| Costs     | Net CAGR                       | 25.4%                | 44.6%                 | 17.3% / 56.8%       |
+| Costs     | Break-even bp per leg, vs 0050 | 112                  | -34                   | --                  |
+| Overlay   | Net Sharpe; max drawdown       | 0.79; -25.1%         | 1.21; -15.8%          | --                  |
+| Inference | Deflated Sharpe (trials = 116) | 0.86                 | 0.81                  | --                  |
+| Inference | Minimum track record, years    | 5.0                  | 3.4                   | --                  |

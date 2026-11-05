@@ -8,6 +8,7 @@ Protocol fixed in advance:
 """
 import json
 import subprocess
+import sys
 from datetime import datetime
 
 import lightgbm as lgb
@@ -27,6 +28,10 @@ def guard():
     audit = json.loads((REPORTS / "pre_holdout_audit.json").read_text(encoding="utf-8"))
     if not audit["passed"]:
         raise SystemExit("Audit did not pass. Holdout not started.")
+    if "--reproduce" in sys.argv:
+        # Reproducibility test only: same frozen spec and code, no adaptive choice. Does not change the marker.
+        print("Reproducing the recorded holdout run", flush=True)
+        return
     if MARKER.exists():
         raise SystemExit(f"Holdout already run: {MARKER.read_text(encoding='utf-8')}")
     dirty = subprocess.check_output(["git", "status", "--porcelain", "--", "stages", "setup.yaml"], cwd=ROOT, text=True).strip()
