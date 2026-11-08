@@ -260,6 +260,46 @@ shap_f = pd.read_csv(REP / "shap_summary.csv")
 SM, VM = H_["metrics"]["strategy"], V["validation"]
 HIC = H_["ic"][H_["deployed"]]
 
+# Review support: trial-count sensitivity, IC change, drawdown calibration (all read from result files).
+import sys
+sys.path.insert(0, str(ROOT / "stages"))
+from simulator import deflated_sharpe  # noqa: E402
+_led = pd.read_csv(ROOT / "run_log.csv")
+_dev = _led[_led.trial_family != "holdout"]
+_dist = _dev.drop_duplicates(["trial_family", "trial", "run"])
+_gbm = _dist.trial_family == "model_lgbm"
+TR_NON_GBM = int((~_gbm).sum())
+TR_OPTUNA = int(pd.to_numeric(_dist.loc[_gbm, "run"]).sum())
+TR_OPTUNA_ALL = int(pd.to_numeric(_dev.loc[_dev.trial_family == "model_lgbm", "run"]).sum())
+TR_RIDGE_ROWS = int((_dist.trial_family == "model_ridge").sum())
+_gb = _dev[_dev.trial_family == "model_lgbm"].groupby("trial").config
+GBM_CHANGED, GBM_FOLDS = int((_gb.first() != _gb.last()).sum()), int(_gb.ngroups)
+_rg = _dev[_dev.trial_family == "model_ridge"].groupby("trial").config
+RIDGE_CHANGED = int((_rg.first() != _rg.last()).sum())
+TR_RIDGE_GRID = 9 * 7 * 2
+TR_CONSERVATIVE = TR_NON_GBM - TR_RIDGE_ROWS + TR_OPTUNA_ALL + TR_RIDGE_GRID
+TRIAL_FAMILIES = _dist[~_gbm].groupby("trial_family").size()
+def _dsr(m, nt):
+    return deflated_sharpe(m["sharpe"], m["years"], m["skew"], m["kurtosis"], nt, V["sharpe_variance"])
+DSR_ROWS = [(nt, _dsr(VM, nt), _dsr(SM, nt)) for nt in sorted({V["n_trials"], TR_OPTUNA_ALL + TR_NON_GBM, TR_CONSERVATIVE, 500})]
+IC_D = models.loc["ridge", "mean"] - HIC["mean"]
+IC_SE = (models.loc["ridge", "se"] ** 2 + HIC["se"] ** 2) ** 0.5
+_nvs = pd.read_parquet(ROOT / "data/processed/nav_validation.parquet")
+_ddv = _nvs["strategy"].dropna() / _nvs["strategy"].dropna().cummax() - 1
+_eps, _in, _lo = [], False, 0.0
+for _x in _ddv:
+    if _x < 0:
+        _lo = min(_lo, _x) if _in else _x
+        _in = True
+    elif _in:
+        _eps.append(_lo); _in = False
+if _in:
+    _eps.append(_lo)
+DD_EPISODES = sorted(e for e in _eps if e < -0.20)
+DD_Q01 = float(_ddv.quantile(0.01))
+DD_WORST = min(_eps)
+H_YEARS = SM["years"]
+
 # ---------- Title ----------
 P("Testing Momentum, Flow and Revenue Signals in Taiwan Stocks", TITLE)
 P("Midterm proposal, Machine Learning for Algorithmic Trading. Instructor: Dr. Ting-Yu Chang.", META)
@@ -270,7 +310,7 @@ story.append(Spacer(1, 5))
 P(f"<b>Summary.</b> This is one complete lap of the ML4T workflow on TWSE and TPEx common stocks. Screening rejected our original momentum and institutional-flow hypothesis. "
   f"The deployed model is a Ridge on two features: distance to the 52-week high and revenue acceleration. On the sealed holdout, run once, the pre-registered test <b>did not pass</b>: "
   f"IC {n(HIC['mean'], 3)} {ci(HIC['low'], HIC['high'], 3)}. Net Sharpe was {n(SM['sharpe'])} {ci(SM['sharpe_low'], SM['sharpe_high'])}, above the 12-1 rule "
-  f"({n(H_['metrics']['rule']['sharpe'])}) and below 0050 ({n(H_['metrics']['etf_0050']['sharpe'])}). We classify the outcome as decay and do not consider the strategy ready for capital.")
+  f"({n(H_['metrics']['rule']['sharpe'])}) and below 0050 ({n(H_['metrics']['etf_0050']['sharpe'])}). The fall in IC is not statistically distinguishable from zero, so we classify the outcome as inconclusive, closest to hold, and do not consider the strategy ready for capital.")
 
 # ---------- 1 ----------
 H("1. Hypothesis and sources of edge")
@@ -281,9 +321,11 @@ table([["Pre-registered falsification test", "Result on validation data"],
        ["Walk-forward IC 95% CI includes zero", "Not triggered for the deployed model. Triggered for 12-1 momentum and for both flow signals."],
        ["A 5–21-day timing placebo does not kill the IC", "<b>Triggered.</b> The IC of both surviving features remains when they are lagged 21 days."],
        ["Net Sharpe after Taiwan costs is below the 12-1 rule", f"Not triggered ({n(VM['sharpe'])} against {n(back.loc['rule', 'sharpe'])})."]], [0.48, 0.52])
-P("Read literally, the second condition says stop. We continued because the assignment asks for one complete lap, and we treat the two features as slow state variables rather than timely news. "
-  "The explanation we now offer is that investors anchor on the 52-week high and digest revenue acceleration slowly. We wrote that <i>after</i> seeing validation data, so only the holdout can test it.")
-P("<b>What could break this.</b> The revised mechanism is post hoc. The two features may proxy for quality or size, which we did not control for directly.")
+P("<b>H1 is falsified.</b> Momentum and both institutional-flow signals failed triage, and the placebo condition was triggered for the features that survived. By our own pre-registered rule, H1 stops here.")
+P("<b>H2 is exploratory and post hoc.</b> We continued because the assignment asks for one complete lap. The deployed model rests on a new hypothesis written <i>after</i> seeing validation data: "
+  "investors anchor on the 52-week high and digest revenue acceleration slowly, so the two features act as slow state variables rather than timely news. "
+  "Validation evidence cannot support H2, because the same data produced it. Only the sealed holdout tests it, and that test is reported in Section 7.")
+P("<b>What could break this.</b> H2 was chosen after looking at the data. The two features may proxy for quality or size, which we did not control for directly.")
 
 # ---------- 2 ----------
 H("2. Trading setup v1 and evaluation protocol")
@@ -303,9 +345,26 @@ table([["Protocol commitment", "Value"],
        ["Buffers", "Purge of 21 + 1 trading days, because the label ends at t+22. No embargo: training never follows validation."],
        ["Tuning", "Nested: last 252 training days, purged, with the fold's hyperparameters fixed before its test block"],
        ["Sealed holdout", "2024-11-01 to 2026-10-31, sealed 2026-11-05, one run"],
+       ["Holdout refit", "Hyperparameters frozen at the 2024 fold's values. Fit once on labels ending by 2024-10-31; refit once on the first trading day after 2025-10-31 with labels that had fully ended. Coded in s06_holdout.py at bd6cece, before the run"],
        ["Confirmatory test", "Holdout IC Newey-West 95% lower bound above 0 AND net Sharpe at least the 12-1 rule"]], [0.3, 0.7])
-P(f"<b>Search accounting.</b> <font name='Body'>run_log.csv</font> records provenance, configuration, window, metric, decision and gate for each run. Bug-fix reruns add rows but not trials. Counting each Optuna trial, the trial count is {V['n_trials']}.")
-P("<b>What could break this.</b> The setup was changed once before any result: the validation start moved from 2015 to 2018 because flow data begins in 2012. "
+S("Timeline of sealing (git commit times, Taipei, 2026-11-05)")
+table([["Time", "Event"],
+       ["14:49", "a40d555: setup.yaml committed with the validation start already at 2018-01 and the holdout dates"],
+       ["15:58", "First row of run_log.csv (triage)"],
+       ["16:01", "First validation backtest"],
+       ["16:09", "bd6cece: validation results, pre-holdout audit, holdout code including the refit rule"],
+       ["19:20", "Holdout run once (reports/holdout_touched.json); result committed at 19:22 as 24d9c3e"]], [0.15, 0.85])
+P("<b>Disclosure.</b> The course plans six weekly checkpoints. We did not follow that pace: setup, validation, audit and holdout were all completed on one day. "
+  "The sealing order still holds, since every commit above precedes the step that uses it, but a compressed schedule leaves less room to notice problems between steps. "
+  "The move of the validation start from 2015 to 2018 happened in our planning notes of 2026-11-03, before setup.yaml was first committed, because flow data begins in 2012 and we wanted at least five training years.")
+fam = ", ".join(f"{k.replace('_', ' ')} {v}" for k, v in TRIAL_FAMILIES.items())
+P(f"<b>Search accounting.</b> <font name='Body'>run_log.csv</font> has {len(_led)} rows: one per run, with provenance, configuration, window, metric, decision and gate. "
+  f"The trial count is not the row count. Our pre-written rule counts each distinct configuration once and each Optuna trial once, and does not count reruns after a bug fix: "
+  f"{TR_NON_GBM} distinct runs ({fam}) plus {TR_OPTUNA} Optuna trials gives <b>{V['n_trials']}</b>.")
+P(f"That rule is generous to us. The bug-fix rerun changed the selected LightGBM configuration in {GBM_CHANGED} of {GBM_FOLDS} folds and the Ridge alpha in {RIDGE_CHANGED}, so the rerun was a second search. "
+  f"Counting it gives {TR_OPTUNA_ALL} Optuna trials. Each Ridge fit also scans a 9-point alpha grid. A conservative count of {TR_CONSERVATIVE} includes both. The Deflated Sharpe ratio stays below 0.95 under every count:")
+table([["Trials assumed", "Deflated Sharpe, validation", "Deflated Sharpe, holdout"]] + [[f"{nt} " + {V['n_trials']: "(our rule, reported)", TR_OPTUNA_ALL + TR_NON_GBM: "(with bug-fix rerun)", TR_CONSERVATIVE: "(rerun + Ridge grid)"}.get(nt, "(stress)"), n(a, 3), n(b, 3)] for nt, a, b in DSR_ROWS], [0.34, 0.33, 0.33])
+P("<b>What could break this.</b> The trial count depends on a rule we wrote ourselves. "
   "Adjusted-price checks displayed TSMC and 0050 daily moves dated in the holdout window; no strategy statistic was computed. The two-month gap at the end of validation is explained in Section 5.")
 
 # ---------- 3 ----------
@@ -335,7 +394,9 @@ P("<b>What could break this.</b> Excluding disposition stocks only on TWSE is th
 H("4. Labels, features and triage")
 val_days = int(models.loc["ridge", "n"])
 P(f"<b>Label.</b> Fixed-horizon continuous return: adjusted Open(t+22) / Open(t+1) − 1, anchored to the next-open fill and checked on 5,000 random rows. Daily labels overlap: the {val_days:,} validation days have about {val_days // 21} independent 21-day periods, "
-  "which is why every IC interval uses Newey-West with 21 lags. Holdout IC covers 465 days, about 22 independent periods.")
+  "which is why every IC interval uses Newey-West with 21 lags. Holdout IC covers 465 days, about 22 independent periods. "
+  "<b>Model target.</b> The models do not fit the raw return. Each day the label is ranked across stocks and centered: percentile rank − 0.5, from −0.5 to 0.5. This removes the market's common move and outliers. "
+  "Backtests use the raw return, and IC is a rank correlation, so neither depends on this choice.")
 table([["Feature", "Role", "Driver hypothesis", "Lookback / cadence", "Representation", "Known failure mode"],
        ["mom_12_1", "Signal", "Persistence", "t−252 to t−21; daily", "Return ÷ 63d vol; rank", "Momentum crashes"],
        ["mom_6_1", "Signal", "Persistence", "t−126 to t−21; daily", "Return ÷ 63d vol; rank", "Momentum crashes"],
@@ -368,7 +429,7 @@ P("<b>What could break this.</b> Selecting 2 of 8 features on validation data in
 H("5. Models, validation, interpretation and uncertainty")
 P("One yardstick: mean daily Spearman IC with a Newey-West 95% CI. The rule fixed in the code: climb a rung only if the paired difference's interval lies above zero. Ridge uses the two surviving signals; LightGBM adds the two state variables.")
 rows = [["Rung", "Configuration", "Validation IC [95% CI]", "ICIR", "Positive folds"]]
-label = dict(rule=("1. 12-1 rule", "Non-ML; top decile"), ridge=("2. Ridge (deployed)", "Alpha 10<super>−3</super>–10<super>5</super>; per-date ranks; state winsor limits fitted on training folds"), lgbm=("3. LightGBM", "Depth 3–4, MAE, early stopping, 84 Optuna trials in total"), ensemble=("Optional: ensemble", "Mean z-score of rungs 1–3"))
+label = dict(rule=("1. 12-1 rule", "Non-ML; top decile"), ridge=("2. Ridge (deployed)", "Alpha 10<super>−3</super>–10<super>5</super>; per-date ranks; state winsor limits fitted on training folds"), lgbm=("3. LightGBM", f"Depth 3–4, MAE, early stopping, {TR_OPTUNA} Optuna trials ({TR_OPTUNA_ALL} with the bug-fix rerun)"), ensemble=("Optional: ensemble", "Mean z-score of rungs 1–3"))
 for m, (a, b) in label.items():
     x = models.loc[m]
     rows.append([a, b, f"{n(x['mean'], 3)} {ci(x['low'], x['high'], 3)}", n(x["icir"]), f"{(folds[m] > 0).sum()}/7"])
@@ -409,7 +470,7 @@ for k, v in names.items():
     x = back.loc[k]
     rows.append([v, pct(x["cagr"]), pct(x["vol"]), f"{n(x['sharpe'])} {ci(x['sharpe_low'], x['sharpe_high'])}", pct(x["max_drawdown"]), "—" if pd.isna(x["turnover_two_way"]) else f"{x['turnover_two_way']:.1f}x"])
 table(rows, [0.28, 0.1, 0.1, 0.26, 0.1, 0.16])
-P("These rows start at the first decision; the deployed strategy's 1.12 in the headline table starts at its first fill. Sharpe is not net of a risk-free rate.")
+P(f"These rows start at the first decision, 2018-01-02. The headline table and the rest of this report start at the first fill, {V['first_trade']}; that is why turnover reads {back.loc['ridge', 'turnover_two_way']:.1f}x here and {VM['turnover_two_way']:.1f}x elsewhere. Sharpe is not net of a risk-free rate.")
 figure("fig3_gross_to_net.png", 2.111, f"Figure 3. Do costs kill it? No: net Sharpe stays positive at 4x assumed costs in both periods. Break-even against zero is {V['breakeven_bp_per_leg_vs_zero']:.0f} / {H_['breakeven_bp_per_leg_vs_zero']:.0f} bp per leg; against 0050 it is {V['breakeven_bp_per_leg_vs_0050']:.0f} / {n(H_['breakeven_bp_per_leg_vs_0050'], 0)} bp.", 0.62)
 P(f"<b>Cost regime.</b> Two-way turnover is {VM['turnover_two_way']:.1f}x a year with a {VM['holding_months']:.1f}-month holding period. Against an assumed average of about 40 bp per leg, a break-even of {V['breakeven_bp_per_leg_vs_zero']:.0f} bp is the comfortable zone at a monthly cadence when measured against zero. It is a gray zone against 0050, and the holdout's negative figure means no cost level closes that gap.")
 ei, hh = alloc.loc["equal"], alloc.loc["inverse_vol"]
@@ -435,7 +496,9 @@ table(stress_rows, [0.4, 0.2, 0.2, 0.2])
 P(f"<b>Tail and path, holdout.</b> 95% daily VaR {pct(SM['var_95'])}, CVaR {pct(SM['cvar_95'])}. Worst drawdown {pct(SM['max_drawdown'])}: peak {SM['dd_peak']}, trough {SM['dd_trough']}, recovered {SM['dd_recovered']}. Mean rolling 63-day beta to 0050 is {D['rolling_beta_mean']:.2f}. "
   "Factor loadings were not estimated.")
 P("<b>Overlay.</b> Volatility target 15%, 63-day realized, t−1 data, exposure capped at 100%. The ladder is 5% watch, 10% halve, 15% halt new positions, 20% unwind, checked at each month's decision on the base strategy's path. "
-  f"With the overlay, validation Sharpe falls from {n(VM['sharpe'])} to {n(V['overlay']['sharpe'])}, and holdout from {n(SM['sharpe'])} to {n(H_['metrics']['overlay']['sharpe'])}, while holdout drawdown improves to {pct(H_['metrics']['overlay']['max_drawdown'])}. It refines, and it does not make the strategy positive; the deployed result excludes it.")
+  f"With the overlay, validation Sharpe falls from {n(VM['sharpe'])} to {n(V['overlay']['sharpe'])}, and holdout from {n(SM['sharpe'])} to {n(H_['metrics']['overlay']['sharpe'])}, while holdout drawdown improves to {pct(H_['metrics']['overlay']['max_drawdown'])}. The deployed result excludes it. "
+  f"<b>Finding: the ladder was not calibrated.</b> Its thresholds came from setup.yaml before any backtest. The base strategy fell more than 20% in {len(DD_EPISODES)} separate validation episodes ({', '.join(pct(e) for e in DD_EPISODES)}), and its 1% daily drawdown quantile is {pct(DD_Q01)}. "
+  f"So a 20% unwind rung is reached in ordinary drawdowns, not only in failures, and the overlay gives up much of the return ({pct(V['overlay']['cagr'])} against {pct(VM['cagr'])}). Section 8 recalibrates the thresholds.")
 _nv, _nh = pd.read_parquet(ROOT / "data/processed/nav_validation.parquet")["strategy"].dropna(), pd.read_parquet(ROOT / "data/processed/nav_holdout.parquet")["strategy"].dropna()
 _path = (1 + pd.concat([_nv.pct_change().dropna(), _nh.pct_change().dropna()])).cumprod()
 _dd = _path / _path.cummax() - 1
@@ -447,15 +510,17 @@ P("<b>What could break this.</b> Opens are assumed fillable at the printed price
 page_break()
 H("7. Results, diagnosis and next iteration")
 figure("headline_table.png", 2.423, "Table 1. Headline results. Holdout is the single run on commit bd6cece, from 2024-11-01 to 2026-10-30.", 1.0)
-P(f"<b>Classification (Chapter 20 pattern): decay.</b> Same sign, IC {n(models.loc['ridge', 'mean'], 3)} → {n(HIC['mean'], 3)}, and no longer significant. The confirmatory test fails on its first condition (lower bound {n(HIC['low'], 3)}) and passes its second ({n(SM['sharpe'])} ≥ {n(H_['metrics']['rule']['sharpe'])}). "
+P(f"<b>Classification (Chapter 20 pattern): inconclusive, closest to hold.</b> IC went from {n(models.loc['ridge', 'mean'], 3)} to {n(HIC['mean'], 3)}, with the same sign. The change is {n(IC_D, 3)} {ci(IC_D - 1.96 * IC_SE, IC_D + 1.96 * IC_SE, 3)} (z = {IC_D / IC_SE:.2f}), so there is no evidence of decay. "
+  f"Hold does not fit fully either: the holdout interval includes zero, so the signal is not confirmed. Never resolved does not fit, because the validation interval excludes zero. The honest reading is that two years cannot separate hold from mild decay. "
+  f"The confirmatory test fails on its first condition (lower bound {n(HIC['low'], 3)}) and passes its second ({n(SM['sharpe'])} ≥ {n(H_['metrics']['rule']['sharpe'])}). "
   f"Deflated Sharpe is {n(H_['deflated_sharpe'])} with {H_['n_trials']} trials. With about two years of data the Sharpe standard error is about 1, and the minimum track record to confirm this Sharpe is {H_['min_track_record_years']:.1f} years.")
 figure("fig1_equity_curves.png", 2.15, f"Figure 1. Did it beat its baselines, net of costs? It beat the 12-1 rule in both periods. In the holdout it lost to 0050: {pct(SM['cagr'])} against {pct(H_['metrics']['etf_0050']['cagr'])} a year. Each holdout series is rebased at the boundary.", 0.78)
 figure("fig4_regime_slice.png", 2.105, "Figure 4. Where does it fail? In downtrends, and in mid-volatility uptrends. Thresholds are point-in-time, and this is the only regime definition tried. The holdout has only 70 downtrend days, so those bars are noisy.", 0.66)
 story.append(CondPageBreak(5 * cm))
 S("Diagnosis")
 bullets([f"<b>Where value was lost:</b> at the holdout gate. The signal gate passed on validation and costs did not remove the result. Against 0050 the shortfall appears before costs too: gross CAGR {pct(H_['gross']['cagr'])}, 0050 {pct(H_['metrics']['etf_0050']['cagr'])}.",
-         f"<b>Drift:</b> mild prediction-quality drift, shown by the lower holdout IC. Net Sharpe rose rather than fell, so this is not portfolio-translation drift. The regime pattern is the same in both periods, and strong market returns may explain some of the higher Sharpe.",
-         f"<b>Binding constraint:</b> construction robustness. In the holdout 0050 returned {D['etf_0050_return'] * 100:.0f}% and TSMC {D['tsmc_return'] * 100:.0f}%, while the median eligible stock returned {D['median_universe_stock_return'] * 100:.0f}%. TSMC was in the top decile in {D['months_tsmc_in_top_decile']} of {D['months']} months, and the largest single weight was {H_['max_name_weight'] * 100:.1f}%. The strategy beat the equal-weight universe ({pct(H_['metrics']['equal_weight']['cagr'])}), which suggests some selection value. These are descriptive comparisons, not proof.",
+         f"<b>Drift:</b> no significant prediction-quality drift: the holdout IC is lower, but the change is within noise. Net Sharpe rose rather than fell, so this is not portfolio-translation drift. The regime pattern is the same in both periods, and strong market returns may explain some of the higher Sharpe.",
+         f"<b>Binding constraint:</b> construction robustness. Over the {H_YEARS:.1f}-year holdout 0050 returned {D['etf_0050_return'] * 100:.0f}% in total ({pct(H_['metrics']['etf_0050']['cagr'])} a year) and TSMC {D['tsmc_return'] * 100:.0f}%, while the median eligible stock returned {D['median_universe_stock_return'] * 100:.0f}%. TSMC was in the top decile in {D['months_tsmc_in_top_decile']} of {D['months']} months, and the largest single weight was {H_['max_name_weight'] * 100:.1f}%. The strategy beat the equal-weight universe ({pct(H_['metrics']['equal_weight']['cagr'])}), which suggests some selection value. These are descriptive comparisons, not proof.",
          "<b>LightGBM:</b> its holdout IC was higher (0.071), but the choice was fixed beforehand. Switching now would contaminate the holdout, so this is only a lead for new data."])
 P("<b>One next step.</b> Re-test both signals in a sector-neutral form on data not yet seen, to separate stock selection from the missing TSMC exposure.")
 P("<b>What could break this.</b> The TSMC explanation fits one two-year window. The holdout was unusually strong for large caps, and the Sharpe interval is too wide to rule out either chance or real skill.")
@@ -466,9 +531,11 @@ P("A design only. The strategy failed its test and is not going to capital, and 
 bullets(["<b>Parity:</b> run the same stage code live, and compare raw data, features, predictions, signals and orders with the backtest at each stage.",
          "<b>Monitoring:</b> rolling Sharpe, drawdown, hit rate and IC over 30, 60 and 90 days, plus the live-to-backtest realization ratio.",
          "<b>Drift:</b> PSI on all model features: watch at 0.10–0.25, retrain above 0.25. Ridge coefficient sign check at each refit.",
-         "<b>Lifecycle:</b> at least 3 months in shadow mode. Pause if the 90-day IC interval lies below zero. Retire on a 20% drawdown, followed by a review.",
+         f"<b>Lifecycle:</b> at least 3 months in shadow mode. Pause if the 90-day IC interval lies below zero. Drawdown thresholds come from the validation path, not from defaults: "
+         f"watch at {-DD_Q01 * 100:.0f}% (the 1% daily drawdown quantile), pause and review at {-DD_WORST * 100:.0f}% (the worst validation drawdown), retire at {-DD_WORST * 125:.0f}% (1.25 times the worst). "
+         f"A 20% retire rule would have stopped this strategy {len(DD_EPISODES)} times in validation.",
          "<b>Diagnosis:</b> separate bugs (fix), signal decay (retrain or retire) and cost inflation (lower the cadence, which would be setup v2)."])
-P("<b>What could break this.</b> These thresholds are textbook defaults and have not been tested on this strategy. Monthly decisions mean drift is slow to detect.")
+P("<b>What could break this.</b> The drawdown thresholds are calibrated on one validation path, which may understate future tails. The PSI and IC thresholds are textbook defaults. Monthly decisions mean drift is slow to detect.")
 
 # ---------- Appendix ----------
 page_break()
